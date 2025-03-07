@@ -4,6 +4,9 @@ import { Video } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Heart, MessageCircle, Share2, ChevronUp, Volume2, VolumeX } from "lucide-react";
 import Button from "./Button";
+import { useLikeVideo, useUserLikes } from "@/hooks/useDatabase";
+import { useAuth } from "@/context/AuthProvider";
+import { useToast } from "@/hooks/use-toast";
 
 interface VideoCardProps {
   video: Video;
@@ -13,9 +16,26 @@ interface VideoCardProps {
 
 const VideoCard = ({ video, isActive, onVideoEnd }: VideoCardProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isLiked, setIsLiked] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  
+  // Fetch user likes
+  const { data: userLikes = [] } = useUserLikes(user?.id || '');
+  const [isLiked, setIsLiked] = useState(false);
+  
+  // Like mutation
+  const likeMutation = useLikeVideo();
+  
+  // Check if this video is liked by the user
+  useEffect(() => {
+    if (userLikes.includes(video.id)) {
+      setIsLiked(true);
+    } else {
+      setIsLiked(false);
+    }
+  }, [userLikes, video.id]);
   
   useEffect(() => {
     if (videoRef.current) {
@@ -38,6 +58,17 @@ const VideoCard = ({ video, isActive, onVideoEnd }: VideoCardProps) => {
   };
 
   const toggleLike = () => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to like videos",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    likeMutation.mutate({ videoId: video.id, userId: user.id });
+    // Optimistically update UI
     setIsLiked(!isLiked);
   };
 
@@ -104,17 +135,20 @@ const VideoCard = ({ video, isActive, onVideoEnd }: VideoCardProps) => {
           </div>
           
           <div className="flex flex-col items-center space-y-6">
-            <Button 
-              variant="icon" 
-              size="icon" 
-              className={cn(
-                "bg-black/30 text-white backdrop-blur-md border border-white/20",
-                isLiked && "text-red-500"
-              )}
-              onClick={toggleLike}
-            >
-              <Heart className={cn("h-5 w-5", isLiked && "fill-current")} />
-            </Button>
+            <div className="flex flex-col items-center space-y-1">
+              <Button 
+                variant="icon" 
+                size="icon" 
+                className={cn(
+                  "bg-black/30 text-white backdrop-blur-md border border-white/20",
+                  isLiked && "text-red-500"
+                )}
+                onClick={toggleLike}
+              >
+                <Heart className={cn("h-5 w-5", isLiked && "fill-current")} />
+              </Button>
+              <span className="text-white text-xs">{formatNumber(video.likes)}</span>
+            </div>
             
             <div className="flex flex-col items-center space-y-1">
               <Button 

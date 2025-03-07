@@ -1,8 +1,9 @@
 
 import { useState, useRef, useEffect } from "react";
-import { Video, Domain } from "@/lib/types";
+import { Domain } from "@/lib/types";
 import VideoCard from "./VideoCard";
-import { getFilteredVideos } from "@/lib/data";
+import { useVideos } from "@/hooks/useDatabase";
+import { Loader2 } from "lucide-react";
 
 interface VideoFeedProps {
   selectedDomains: Domain[];
@@ -10,13 +11,9 @@ interface VideoFeedProps {
 
 const VideoFeed = ({ selectedDomains }: VideoFeedProps) => {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [videos, setVideos] = useState<Video[]>([]);
+  const { data: videos = [], isLoading, error } = useVideos(selectedDomains);
   const feedRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<HTMLDivElement[]>([]);
-  
-  useEffect(() => {
-    setVideos(getFilteredVideos(selectedDomains));
-  }, [selectedDomains]);
   
   useEffect(() => {
     const handleScroll = () => {
@@ -74,6 +71,27 @@ const VideoFeed = ({ selectedDomains }: VideoFeedProps) => {
   // Reset refs array when videos change
   videoRefs.current = [];
   
+  if (isLoading) {
+    return (
+      <div className="h-full w-full flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="h-full w-full flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <p className="text-lg font-medium text-destructive">Error loading videos</p>
+          <p className="text-sm text-muted-foreground">
+            {error instanceof Error ? error.message : 'Something went wrong'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={feedRef}
